@@ -1,6 +1,6 @@
 #repo for home works otus
 
-core update to vps ubuntu 24
+###core update to vps ubuntu 24
 
 ~$ uname -rp
 6.8.0-85-generic x86_64
@@ -12,7 +12,7 @@ core update to vps ubuntu 24
 ~$ sudo wget https://kernel.ubuntu.com/mainline/v6.17/amd64/linux-modules-6.17.0-061700-generic_6.17.0-061700.202509282239_amd64.deb
 ~$ sudo dpkg -i *.deb 
 
-Вывалилась ошибка зависимостей
+###Вывалилась ошибка зависимостей
 
 dpkg -i linux-headers-6.17.0-061700*.deb linux-modules-6.17.0-061700-generic*.deb linux-image-unsigned-6.17.0-061700-generic*.deb
 (Reading database ... 146412 files and directories currently installed.)
@@ -43,9 +43,9 @@ Errors were encountered while processing:
  linux-image-unsigned-6.17.0-061700-generic
 
 
-Исправляем нарушенные зависимости
+###Исправляем нарушенные зависимости
 
- lzhkn@hiplet-50084:~$ sudo apt -f install
+~$ sudo apt -f install
 
 Reading package lists... Done
 Building dependency tree... Done
@@ -90,7 +90,7 @@ Adding boot menu entry for UEFI Firmware Settings ...
 done
 needrestart is being skipped since dpkg has failed
 
-Видим что образы ядра найдены, обновляем загрузчик:
+###Видим что образы ядра найдены, обновляем загрузчик:
 
 sudo update-grub
 Sourcing file `/etc/default/grub'
@@ -113,4 +113,4 @@ done
 ~$ uname -r
 6.17.0-061700-generic
 
-done
+###done
