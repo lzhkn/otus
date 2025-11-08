@@ -264,7 +264,7 @@ pid /run/nginx-first.pid;
 В секции http добавляем/изменяем server блок:
 
 http {
-    # ... существующие настройки ...
+    # ... настройки ...
     
     server {
         listen 9001;
@@ -293,7 +293,8 @@ pid /run/nginx-second.pid;
 В секции http добавляем/изменяем server блок:
 
 http {
-    # ... существующие настройки ...
+    # ...
+     настройки ...
     
     server {
         listen 9002;
