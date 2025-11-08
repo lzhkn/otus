@@ -20,12 +20,12 @@ systemd через директиву EnvironmentFile подставляет э�
 1.2 Создаем лог-файл и добавлем тестовые данные
 
 # Создаем лог-файл
-sudo touch /var/log/watchlog.log
+root@ubuntu2402:~#  touch /var/log/watchlog.log
 
 # Добавляем тестовые данные с ключевым словом
-echo "Normal log entry" | sudo tee -a /var/log/watchlog.log
-echo "Important ALERT message" | sudo tee -a /var/log/watchlog.log
-echo "Another normal entry" | sudo tee -a /var/log/watchlog.log
+root@ubuntu2402:~# echo "Normal log entry" | sudo tee -a /var/log/watchlog.log
+root@ubuntu2402:~# echo "Important ALERT message" | sudo tee -a /var/log/watchlog.log
+root@ubuntu2402:~# echo "Another normal entry" | sudo tee -a /var/log/watchlog.log
 
 
 1.3 Создаем скрипта мониторинга
@@ -223,10 +223,7 @@ root@ubuntu2402:~# apt install nginx -y
 
 root@ubuntu2402:~# nano /etc/systemd/system/nginx@.service
 
-
-
-
-Понять, как создавать инстансные (template) unit-файлы, чтобы запускать несколько копий одного сервиса с разными конфигами.
+Как создавать инстансные (template) unit-файлы, чтобы запускать несколько копий одного сервиса с разными конфигами.
 
 1. Установливаем Nginx
 
@@ -266,7 +263,6 @@ pid /run/nginx-first.pid;
 
 В секции http добавляем/изменяем server блок:
 
-nginx
 http {
     # ... существующие настройки ...
     
@@ -284,8 +280,6 @@ http {
     # include /etc/nginx/sites-enabled/*;
 }
 
-
-
 Создаем вторую конфигурацию:
 
 
@@ -298,7 +292,6 @@ pid /run/nginx-second.pid;
 
 В секции http добавляем/изменяем server блок:
 
-nginx
 http {
     # ... существующие настройки ...
     
@@ -316,9 +309,7 @@ http {
     # include /etc/nginx/sites-enabled/*;
 }
 
-
 3.4 Запускаем и проверяем
-
 
 root@ubuntu2402:~# systemctl daemon-reload
 
@@ -363,7 +354,6 @@ root@ubuntu2402:~# systemctl status nginx@second.service
 
 Nov 08 21:41:25 ubuntu2402  systemd[1]: Starting nginx@second.service - A high performance web server and a reverse proxy server...
 Nov 08 21:41:25 ubuntu2402  systemd[1]: Started nginx@second.service - A high performance web server and a reverse proxy server.
-root@ubuntu2402:~# 
 
 
 
