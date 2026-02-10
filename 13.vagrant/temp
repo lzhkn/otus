@@ -1,0 +1,72 @@
+# -*- mode: ruby -*-
+# vi: set ft=ruby :
+
+Vagrant.configure("2") do |config|
+  
+  # Используем Rocky Linux 9
+  config.vm.box = "rocky9"
+  
+  # Настройка провайдера VirtualBox
+  config.vm.provider "virtualbox" do |vb|
+    vb.memory = "1024"
+    vb.cpus = 1
+    
+    # Добавляем два виртуальных диска по 1 ГБ
+    # Первый диск
+    unless File.exist?("disk1.vdi")
+      vb.customize ["createhd", "--filename", "disk1.vdi", "--size", 1024]
+    end
+    vb.customize ["storageattach", :id, "--storagectl", "SATA Controller", "--port", 1, "--device", 0, "--type", "hdd", "--medium", "disk1.vdi"]
+    
+    # Второй диск
+    unless File.exist?("disk2.vdi")
+      vb.customize ["createhd", "--filename", "disk2.vdi", "--size", 1024]
+    end
+    vb.customize ["storageattach", :id, "--storagectl", "SATA Controller", "--port", 2, "--device", 0, "--type", "hdd", "--medium", "disk2.vdi"]
+  end
+  
+  # Проброс порта 80 гостя -> 8080 хоста
+  config.vm.network "forwarded_port", guest: 80, host: 8080
+  
+  # Провижининг - настройка дисков
+  config.vm.provision "shell", inline: <<-SHELL
+    # Установка необходимых утилит
+    yum install -y util-linux-ng
+    
+    # Определяем имена дисков (обычно sdb и sdc)
+    DISK1="/dev/sdb"
+    DISK2="/dev/sdc"
+    
+    # Форматирование первого диска в ext4
+    echo "Форматирование $DISK1..."
+    mkfs.ext4 -F $DISK1
+    
+    # Форматирование второго диска в ext4
+    echo "Форматирование $DISK2..."
+    mkfs.ext4 -F $DISK2
+    
+    # Создание точек монтирования
+    mkdir -p /mnt/disk1
+    mkdir -p /mnt/disk2
+    
+    # Монтирование дисков
+    mount $DISK1 /mnt/disk1
+    mount $DISK2 /mnt/disk2
+    
+    # Добавление в /etc/fstab для автоматического монтирования
+    # Получаем UUID дисков
+    UUID1=$(blkid -s UUID -o value $DISK1)
+    UUID2=$(blkid -s UUID -o value $DISK2)
+    
+    # Добавляем записи в fstab
+    echo "UUID=$UUID1 /mnt/disk1 ext4 defaults 0 0" >> /etc/fstab
+    echo "UUID=$UUID2 /mnt/disk2 ext4 defaults 0 0" >> /etc/fstab
+    
+    # Проверка
+    echo "=== Результат ==="
+    df -h | grep mnt
+    echo "=== Содержимое fstab ==="
+    grep mnt /etc/fstab
+  SHELL
+  
+end
