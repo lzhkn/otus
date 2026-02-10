@@ -1,0 +1,1 @@
+Деплой nginx на localhost, порт 8080
