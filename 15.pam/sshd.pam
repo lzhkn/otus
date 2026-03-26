@@ -1,0 +1,27 @@
+#%PAM-1.0
+# /etc/pam.d/sshd — Ubuntu 24.04
+#
+# Строка с pam_exec добавляется ПОСЛЕ @include common-auth,
+# чтобы сначала проверился пароль, и только потом — наш скрипт.
+
+@include common-auth
+
+# Ограничение по выходным через внешний скрипт
+auth required pam_exec.so debug /usr/local/bin/login.sh
+
+account    required     pam_nologin.so
+@include common-account
+
+session [success=ok ignore=ignore module_unknown=ignore default=bad] pam_selinux.so close
+session    required     pam_loginuid.so
+session    optional     pam_keyinit.so force revoke
+@include common-session
+session    optional     pam_motd.so  motd=/run/motd.dynamic
+session    optional     pam_motd.so noupdate
+session    optional     pam_mail.so standard noenv
+session    required     pam_limits.so
+session    required     pam_env.so
+session    required     pam_env.so user_readenv=1 envfile=/etc/default/locale
+session [success=ok ignore=ignore module_unknown=ignore default=bad] pam_selinux.so open
+
+@include common-password
