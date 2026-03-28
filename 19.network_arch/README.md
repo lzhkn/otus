@@ -133,7 +133,82 @@ iface vmbr2 inet manual
     bridge_stp off
     bridge_fd 0
     # dir-net
-# ... и так далее до vmbr13
+
+auto vmbr3
+iface vmbr3 inet manual
+    bridge_ports none
+    bridge_stp off
+    bridge_fd 0
+    # hw-net: office hardware central
+
+auto vmbr4
+iface vmbr4 inet manual
+    bridge_ports none
+    bridge_stp off
+    bridge_fd 0
+    # mgt-net: wifi/mgt central
+
+auto vmbr5
+iface vmbr5 inet manual
+    bridge_ports none
+    bridge_stp off
+    bridge_fd 0
+    # office1-central: centralRouter — office1Router
+
+auto vmbr6
+iface vmbr6 inet manual
+    bridge_ports none
+    bridge_stp off
+
+
+auto vmbr7
+iface vmbr7 inet manual
+    bridge_ports none
+    bridge_stp off
+    bridge_fd 0
+    # dev1-net: office1 dev
+
+auto vmbr8
+iface vmbr8 inet manual
+    bridge_ports none
+    bridge_stp off
+    bridge_fd 0
+    # test1-net: office1 test servers
+
+auto vmbr9
+iface vmbr9 inet manual
+    bridge_ports none
+    bridge_stp off
+    bridge_fd 0
+    # managers-net: office1 managers
+
+auto vmbr10
+iface vmbr10 inet manual
+    bridge_ports none
+    bridge_stp off
+    bridge_fd 0
+    # office1-net: office1 hardware
+
+auto vmbr11
+iface vmbr11 inet manual
+    bridge_ports none
+    bridge_stp off
+    bridge_fd 0
+    # dev2-net: office2 dev
+
+auto vmbr12
+iface vmbr12 inet manual
+    bridge_ports none
+    bridge_stp off
+    bridge_fd 0
+    # test2-net: office2 test servers
+
+auto vmbr13
+iface vmbr13 inet manual
+    bridge_ports none
+    bridge_stp off
+    bridge_fd 0
+    # office2-net: office2 hardware
 ```
 
 Применено: `ifreload -a`
@@ -275,7 +350,7 @@ ansible -i hosts inetRouter -m shell -a "iptables-save | grep MASQUERADE" --ask-
 
 | Условие                              | Результат |
 |--------------------------------------|-----------|
-| Все хосты пингуют 8.8.8.8           | ✅        |
+| Все хосты пингуют 8.8.8.8            | ✅        |
 | Трафик идёт через inetRouter         | ✅        |
 | IP forwarding на всех роутерах       | ✅        |
 | Серверы видят друг друга             | ✅        |
