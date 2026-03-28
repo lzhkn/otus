@@ -1,0 +1,99 @@
+---
+- name: Common setup for all VMs
+  hosts: all
+  become: true
+  tasks:
+
+    - name: Install packages
+      ansible.builtin.apt:
+        name:
+          - traceroute
+          - net-tools
+        state: present
+        update_cache: true
+
+    - name: Deploy netplan config
+      ansible.builtin.template:
+        src: "{{ inventory_hostname }}.yaml.j2"
+        dest: /etc/netplan/50-cloud-init.yaml
+        owner: root
+        group: root
+        mode: '0600'
+      notify: Apply netplan
+
+  handlers:
+    - name: Apply netplan
+      ansible.builtin.command: netplan apply
+      changed_when: true
+
+- name: Enable IP forwarding on routers
+  hosts: routers
+  become: true
+  tasks:
+
+    - name: Enable net.ipv4.conf.all.forwarding
+      ansible.posix.sysctl:
+        name: net.ipv4.conf.all.forwarding
+        value: '1'
+        state: present
+        sysctl_set: true
+        reload: true
+
+- name: Setup NAT on inetRouter
+  hosts: inetRouter
+  become: true
+  tasks:
+
+    - name: Stop and disable ufw
+      ansible.builtin.systemd:
+        name: ufw
+        state: stopped
+        enabled: false
+      ignore_errors: true
+
+    - name: Deploy iptables rules
+      ansible.builtin.template:
+        src: iptables_rules.ipv4.j2
+        dest: /etc/iptables_rules.ipv4
+        owner: root
+        group: root
+        mode: '0644'
+
+    - name: Create systemd service for iptables restore
+      ansible.builtin.copy:
+        dest: /etc/systemd/system/iptables-restore.service
+        owner: root
+        group: root
+        mode: '0644'
+        content: |
+          [Unit]
+          Description=Restore iptables rules
+          Before=network-pre.target
+          Wants=network-pre.target
+
+          [Service]
+          Type=oneshot
+          ExecStart=/sbin/iptables-restore /etc/iptables_rules.ipv4
+          RemainAfterExit=yes
+
+          [Install]
+          WantedBy=multi-user.target
+
+    - name: Enable iptables-restore service
+      ansible.builtin.systemd:
+        name: iptables-restore
+        enabled: true
+        daemon_reload: true
+
+    - name: Apply iptables rules now
+      ansible.builtin.command: iptables-restore /etc/iptables_rules.ipv4
+      changed_when: true
+
+- name: Reboot all VMs
+  hosts: all
+  become: true
+  tasks:
+
+    - name: Reboot
+      ansible.builtin.reboot:
+        reboot_timeout: 300

@@ -1,0 +1,29 @@
+network:
+  version: 2
+  renderer: networkd
+  ethernets:
+    ens18:
+      # mgmt — статический IP, только для SSH-доступа
+      addresses:
+        - 192.168.0.133/24
+      nameservers:
+        addresses: [8.8.8.8, 8.8.4.4]
+    ens19:
+      # office2-central: линк до centralRouter (192.168.255.4/30)
+      addresses:
+        - 192.168.255.6/30
+      routes:
+        - to: 0.0.0.0/0
+          via: 192.168.255.5
+    ens20:
+      # dev office2 (192.168.1.0/25)
+      addresses:
+        - 192.168.1.1/25
+    ens21:
+      # test servers office2 (192.168.1.128/26)
+      addresses:
+        - 192.168.1.129/26
+    ens22:
+      # office hardware office2 (192.168.1.192/26)
+      addresses:
+        - 192.168.1.193/26

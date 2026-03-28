@@ -1,0 +1,18 @@
+[routers]
+inetRouter    ansible_host=192.168.0.130
+centralRouter ansible_host=192.168.0.131
+office1Router ansible_host=192.168.0.132
+office2Router ansible_host=192.168.0.133
+
+[servers]
+centralServer ansible_host=192.168.0.134
+office1Server ansible_host=192.168.0.135
+office2Server ansible_host=192.168.0.136
+
+[all:children]
+routers
+servers
+
+[all:vars]
+ansible_user=lzhkn
+ansible_become=true
