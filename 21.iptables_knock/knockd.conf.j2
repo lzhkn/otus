@@ -1,0 +1,23 @@
+# /etc/knockd.conf — inetRouter
+# Управляется Ansible. Не редактировать вручную.
+#
+# Port knocking: centralRouter стучит в последовательность портов
+# {{ knock_seq | join(' → ') }}, после чего knockd открывает SSH на {{ ssh_port }}
+# с IP источника на {{ knock_seq_timeout }} секунд.
+# ============================================================
+
+[options]
+    logfile     = /var/log/knockd.log
+    interface   = {{ inetrouter_lan_iface }}
+
+[openSSH]
+    sequence    = {{ knock_seq | join(',') }}
+    seq_timeout = {{ knock_seq_timeout }}
+    command     = /sbin/iptables -I INPUT 1 -s %IP% -p tcp --dport {{ ssh_port }} -m conntrack --ctstate NEW -j ACCEPT
+    tcpflags    = syn
+
+[closeSSH]
+    sequence    = {{ knock_seq | reverse | join(',') }}
+    seq_timeout = {{ knock_seq_timeout }}
+    command     = /sbin/iptables -D INPUT -s %IP% -p tcp --dport {{ ssh_port }} -m conntrack --ctstate NEW -j ACCEPT
+    tcpflags    = syn

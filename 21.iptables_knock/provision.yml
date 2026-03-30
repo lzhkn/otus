@@ -1,0 +1,199 @@
+---
+# =============================================================================
+# Play 1 — Общее для всех хостов: утилиты
+# =============================================================================
+- name: Common packages
+  hosts: all
+  become: true
+
+  tasks:
+    - name: Install tools
+      ansible.builtin.apt:
+        name:
+          - traceroute
+          - net-tools
+          - nmap
+          - iptables-persistent
+        state: present
+        update_cache: true
+
+# =============================================================================
+# Play 2 — IP forwarding на роутерах
+# =============================================================================
+- name: Enable IP forwarding on routers
+  hosts: routers
+  become: true
+
+  tasks:
+    - name: Set net.ipv4.ip_forward
+      ansible.posix.sysctl:
+        name: net.ipv4.ip_forward
+        value: "1"
+        state: present
+        sysctl_set: true
+        reload: true
+
+# =============================================================================
+# Play 3 — inetRouter: NAT + port knocking (защита SSH)
+# =============================================================================
+- name: Configure inetRouter — NAT + knockd
+  hosts: inetRouter
+  become: true
+
+  tasks:
+    - name: Disable ufw
+      ansible.builtin.systemd:
+        name: ufw
+        state: stopped
+        enabled: false
+      ignore_errors: true
+
+    - name: Install knockd
+      ansible.builtin.apt:
+        name: knockd
+        state: present
+
+    - name: Deploy iptables rules for inetRouter
+      ansible.builtin.template:
+        src: templates/inetRouter.iptables.j2
+        dest: /etc/iptables/rules.v4
+        owner: root
+        group: root
+        mode: "0640"
+      notify:
+        - Restore iptables inetRouter
+        - Save iptables
+
+    - name: Deploy knockd config
+      ansible.builtin.template:
+        src: templates/knockd.conf.j2
+        dest: /etc/knockd.conf
+        owner: root
+        group: root
+        mode: "0644"
+      notify: Restart knockd
+
+    - name: Enable knockd start in defaults
+      ansible.builtin.lineinfile:
+        path: /etc/default/knockd
+        regexp: "^#?START_KNOCKD"
+        line: "START_KNOCKD=1"
+      notify: Restart knockd
+
+    - name: Set knockd interface in defaults
+      ansible.builtin.lineinfile:
+        path: /etc/default/knockd
+        regexp: "^#?KNOCKD_OPTS"
+        line: 'KNOCKD_OPTS="-i {{ inetrouter_lan_iface }}"'
+      notify: Restart knockd
+
+    - name: Enable and start knockd
+      ansible.builtin.systemd:
+        name: knockd
+        state: started
+        enabled: true
+
+  handlers:
+    - name: Restore iptables inetRouter
+      ansible.builtin.shell: iptables-restore < /etc/iptables/rules.v4
+
+    - name: Save iptables
+      ansible.builtin.shell: netfilter-persistent save
+
+    - name: Restart knockd
+      ansible.builtin.systemd:
+        name: knockd
+        state: restarted
+
+# =============================================================================
+# Play 4 — inetRouter2: проброс порта 8080 → centralServer:80
+# =============================================================================
+- name: Configure inetRouter2 — port forward 8080 to centralServer
+  hosts: inetRouter2
+  become: true
+
+  tasks:
+    - name: Disable ufw
+      ansible.builtin.systemd:
+        name: ufw
+        state: stopped
+        enabled: false
+      ignore_errors: true
+
+    - name: Deploy iptables rules for inetRouter2
+      ansible.builtin.template:
+        src: templates/inetRouter2.iptables.j2
+        dest: /etc/iptables/rules.v4
+        owner: root
+        group: root
+        mode: "0640"
+      notify:
+        - Restore iptables inetRouter2
+        - Save iptables
+
+  handlers:
+    - name: Restore iptables inetRouter2
+      ansible.builtin.shell: iptables-restore < /etc/iptables/rules.v4
+
+    - name: Save iptables
+      ansible.builtin.shell: netfilter-persistent save
+
+# =============================================================================
+# Play 5 — centralServer: nginx + маршрут
+# =============================================================================
+- name: Configure centralServer — nginx + route
+  hosts: centralServer
+  become: true
+
+  tasks:
+    - name: Install nginx
+      ansible.builtin.apt:
+        name: nginx
+        state: present
+
+    - name: Disable IPv6 in nginx default config
+      ansible.builtin.replace:
+        path: /etc/nginx/sites-enabled/default
+        regexp: '^\s*listen \[::\]:80.*$'
+        replace: '# listen [::]:80 default_server;  # disabled: no IPv6'
+      notify: Restart nginx
+
+    - name: Ensure nginx is started and enabled
+      ansible.builtin.systemd:
+        name: nginx
+        state: started
+        enabled: true
+
+    - name: Deploy default route via centralRouter
+      ansible.builtin.template:
+        src: templates/centralServer.route.j2
+        dest: /etc/netplan/99-routes.yaml
+        owner: root
+        group: root
+        mode: "0600"
+      notify: Apply netplan
+
+  handlers:
+    - name: Restart nginx
+      ansible.builtin.systemd:
+        name: nginx
+        state: restarted
+
+    - name: Apply netplan
+      ansible.builtin.shell: netplan apply
+
+# =============================================================================
+# Play 6 — centralRouter: knock-скрипт
+# =============================================================================
+- name: Deploy knock script on centralRouter
+  hosts: centralRouter
+  become: true
+
+  tasks:
+    - name: Deploy knock.sh
+      ansible.builtin.template:
+        src: templates/knock.sh.j2
+        dest: /usr/local/bin/knock.sh
+        owner: root
+        group: root
+        mode: "0755"

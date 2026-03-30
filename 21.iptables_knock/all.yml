@@ -1,0 +1,36 @@
+---
+# ============================================================
+# Общие переменные лаборатории
+# ============================================================
+
+# Адреса хостов
+inet_router_ip:     "192.168.255.1"
+central_router_ip:  "192.168.255.2"
+central_server_ip:  "192.168.0.2"     # в сети directors /28
+
+# Внутренние подсети — не NATить
+internal_networks:
+  - "192.168.0.0/16"
+
+# inetRouter: внешний интерфейс (смотрит в интернет)
+inetrouter_wan_iface: "ens18"
+# inetRouter: внутренний интерфейс (линк до centralRouter)
+inetrouter_lan_iface: "ens19"
+
+# inetRouter2: интерфейс, смотрящий на хост (host-only)
+inet2_host_iface: "ens18"
+# inetRouter2: интерфейс к centralServer (внутренняя сеть)
+inet2_lan_iface: "ens19"
+# inetRouter2: порт, на котором слушаем снаружи
+inet2_public_port: 8080
+# inetRouter2: куда форвардим (centralServer)
+inet2_dst_ip:   "{{ central_server_ip }}"
+inet2_dst_port: 80
+
+# Port knocking — последовательность портов
+knock_seq:
+  - 7000
+  - 8000
+  - 9000
+knock_seq_timeout: 10   # секунд между стуками
+ssh_port: 22

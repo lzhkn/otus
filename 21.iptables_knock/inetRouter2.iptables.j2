@@ -1,0 +1,50 @@
+# /etc/iptables/rules.v4 — inetRouter2
+# Управляется Ansible. Не редактировать вручную.
+#
+# Задачи:
+#   - Принимать HTTP на порт {{ inet2_public_port }} снаружи (host-only сеть)
+#   - DNAT: перенаправлять :{{ inet2_public_port }} → {{ inet2_dst_ip }}:{{ inet2_dst_port }} (centralServer nginx)
+#   - Дефолтный маршрут в интернет остаётся через inetRouter (не менять)
+# ============================================================
+
+*filter
+:INPUT DROP [0:0]
+:FORWARD DROP [0:0]
+:OUTPUT ACCEPT [0:0]
+
+# --- Loopback ---
+-A INPUT -i lo -j ACCEPT
+
+# --- Установленные и связанные соединения ---
+-A INPUT  -m conntrack --ctstate ESTABLISHED,RELATED -j ACCEPT
+-A FORWARD -m conntrack --ctstate ESTABLISHED,RELATED -j ACCEPT
+
+# --- ICMP ---
+-A INPUT -p icmp --icmp-type echo-request -j ACCEPT
+
+# --- SSH для управления ---
+-A INPUT -p tcp --dport {{ ssh_port }} -j ACCEPT
+
+# --- HTTP на публичном порту {{ inet2_public_port }} ---
+-A INPUT -p tcp --dport {{ inet2_public_port }} -j ACCEPT
+
+# --- Форвард к centralServer ---
+-A FORWARD -p tcp -d {{ inet2_dst_ip }} --dport {{ inet2_dst_port }} -m conntrack --ctstate NEW,ESTABLISHED,RELATED -j ACCEPT
+
+COMMIT
+
+*nat
+:PREROUTING ACCEPT [0:0]
+:INPUT ACCEPT [0:0]
+:OUTPUT ACCEPT [0:0]
+:POSTROUTING ACCEPT [0:0]
+
+# --- DNAT: хост стучит на inetRouter2:{{ inet2_public_port }},
+#     получает ответ от centralServer:{{ inet2_dst_port }} ---
+-A PREROUTING -i {{ inet2_host_iface }} -p tcp --dport {{ inet2_public_port }} -j DNAT --to-destination {{ inet2_dst_ip }}:{{ inet2_dst_port }}
+
+# --- MASQUERADE: чтобы centralServer видел inetRouter2 как источник
+#     (иначе ответ уйдёт мимо) ---
+-A POSTROUTING -o {{ inet2_host_iface }} -p tcp --dport {{ inet2_dst_port }} -d {{ inet2_dst_ip }} -j MASQUERADE
+
+COMMIT
