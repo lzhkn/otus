@@ -1,0 +1,11 @@
+network:
+  version: 2
+  ethernets:
+    lo:
+      addresses:
+        - {{ ospf_loopback }}
+{% for iface in ospf_ifaces %}
+    {{ iface.name }}:
+      addresses:
+        - {{ iface.address }}
+{% endfor %}

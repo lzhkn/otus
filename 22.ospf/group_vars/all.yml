@@ -1,0 +1,3 @@
+frr_ospf_area: "0"
+frr_hello_interval: 5
+frr_dead_interval: 20

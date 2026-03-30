@@ -1,0 +1,87 @@
+---
+- name: Deploy OSPF (FRRouting) on all routers
+  hosts: ospf_routers
+  become: yes
+
+  tasks:
+
+    # ── 1. Kernel: форвардинг и rp_filter ─────────────────────────────────
+    - name: Configure sysctl for routing
+      ansible.posix.sysctl:
+        name: "{{ item.key }}"
+        value: "{{ item.value }}"
+        sysctl_file: /etc/sysctl.d/99-ospf.conf
+        reload: yes
+      loop:
+        - { key: net.ipv4.ip_forward,             value: "1" }
+        - { key: net.ipv4.conf.all.rp_filter,     value: "0" }
+        - { key: net.ipv4.conf.default.rp_filter, value: "0" }
+
+    # ── 2. Netplan: настройка интерфейсов ─────────────────────────────────
+    - name: Deploy netplan config
+      ansible.builtin.template:
+        src: templates/netplan.yaml.j2
+        dest: /etc/netplan/99-ospf.yaml
+        owner: root
+        group: root
+        mode: '0600'
+      notify: Apply netplan
+
+    # ── 3. FRR: репозиторий ───────────────────────────────────────────────
+    - name: Add FRR GPG key
+      ansible.builtin.get_url:
+        url: https://deb.frrouting.org/frr/keys.gpg
+        dest: /usr/share/keyrings/frrouting.gpg
+        mode: '0644'
+
+    - name: Add FRR apt repository
+      ansible.builtin.apt_repository:
+        repo: >-
+          deb [signed-by=/usr/share/keyrings/frrouting.gpg]
+          https://deb.frrouting.org/frr
+          {{ ansible_distribution_release }} frr-stable
+        filename: frr
+        state: present
+
+    - name: Install FRR packages
+      ansible.builtin.apt:
+        name:
+          - frr
+          - frr-pythontools
+        update_cache: yes
+        state: present
+
+    # ── 4. FRR: включаем ospfd ────────────────────────────────────────────
+    - name: Enable ospfd in /etc/frr/daemons
+      ansible.builtin.lineinfile:
+        path: /etc/frr/daemons
+        regexp: '^ospfd='
+        line: 'ospfd=yes'
+      notify: Restart FRR
+
+    # ── 5. FRR: деплой конфига из шаблона ────────────────────────────────
+    - name: Deploy FRR OSPF config
+      ansible.builtin.template:
+        src: templates/frr.conf.j2
+        dest: /etc/frr/frr.conf
+        owner: frr
+        group: frr
+        mode: '0640'
+      notify: Restart FRR
+
+    # ── 6. FRR: запущен и включён в автозагрузку ─────────────────────────
+    - name: Ensure FRR is enabled and started
+      ansible.builtin.systemd:
+        name: frr
+        enabled: yes
+        state: started
+
+  handlers:
+
+    - name: Apply netplan
+      ansible.builtin.command: netplan apply
+
+    - name: Restart FRR
+      ansible.builtin.systemd:
+        name: frr
+        state: restarted

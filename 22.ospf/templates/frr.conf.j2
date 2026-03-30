@@ -1,0 +1,27 @@
+frr version 8.5
+frr defaults traditional
+hostname {{ inventory_hostname }}
+log syslog informational
+!
+interface lo
+ ip ospf area {{ frr_ospf_area }}
+!
+{% for iface in ospf_ifaces %}
+interface {{ iface.name }}
+ ip ospf area {{ frr_ospf_area }}
+ ip ospf hello-interval {{ frr_hello_interval }}
+ ip ospf dead-interval {{ frr_dead_interval }}
+{% if iface.cost is defined and iface.cost != 10 %}
+ ip ospf cost {{ iface.cost }}
+{% endif %}
+!
+{% endfor %}
+router ospf
+ ospf router-id {{ ospf_router_id }}
+ passive-interface lo
+ network {{ ospf_loopback }} area {{ frr_ospf_area }}
+{% for iface in ospf_ifaces %}
+ network {{ iface.network }} area {{ frr_ospf_area }}
+{% endfor %}
+!
+line vty

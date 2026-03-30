@@ -1,0 +1,11 @@
+ospf_router_id: "3.3.3.3"
+ospf_loopback: "3.3.3.3/32"
+ospf_ifaces:
+  - name: ens19
+    address: "10.0.23.2/30"
+    network: "10.0.23.0/30"
+    cost: 10
+  - name: ens20
+    address: "10.0.13.2/30"
+    network: "10.0.13.0/30"
+    cost: 1000
