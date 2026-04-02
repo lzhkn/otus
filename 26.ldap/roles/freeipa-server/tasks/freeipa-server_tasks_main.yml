@@ -1,0 +1,129 @@
+---
+- name: Set hostname
+  hostname:
+    name: "{{ ipa_server_fqdn }}"
+
+- name: Set timezone
+  timezone:
+    name: "{{ timezone }}"
+
+- name: Install chrony
+  dnf:
+    name: chrony
+    state: present
+
+- name: Enable and start chronyd
+  service:
+    name: chronyd
+    state: started
+    enabled: true
+
+- name: Deploy /etc/hosts
+  template:
+    src: hosts.j2
+    dest: /etc/hosts
+    owner: root
+    group: root
+    mode: "0644"
+
+- name: Set SELinux to permissive (runtime)
+  command: setenforce 0
+  changed_when: false
+  failed_when: false
+
+- name: Set SELinux to permissive (persistent)
+  selinux:
+    state: permissive
+    policy: targeted
+
+- name: Install firewalld
+  dnf:
+    name: firewalld
+    state: present
+
+- name: Enable and start firewalld
+  service:
+    name: firewalld
+    state: started
+    enabled: true
+
+- name: Open FreeIPA firewall services
+  firewalld:
+    service: "{{ item }}"
+    permanent: true
+    immediate: true
+    state: enabled
+  loop:
+    - freeipa-ldap
+    - freeipa-ldaps
+    - freeipa-replication
+    - freeipa-trust
+    - dns
+    - ntp
+    - http
+    - https
+    - kerberos
+    - kpasswd
+    - ldap
+    - ldaps
+
+- name: Open FreeIPA firewall ports
+  firewalld:
+    port: "{{ item }}"
+    permanent: true
+    immediate: true
+    state: enabled
+  loop:
+    - 80/tcp
+    - 443/tcp
+    - 389/tcp
+    - 636/tcp
+    - 88/tcp
+    - 88/udp
+    - 464/tcp
+    - 464/udp
+    - 53/tcp
+    - 53/udp
+    - 123/udp
+
+- name: Install FreeIPA server packages
+  dnf:
+    name:
+      - ipa-server
+      - ipa-server-dns
+    state: present
+
+- name: Check if FreeIPA is already installed
+  stat:
+    path: /etc/ipa/default.conf
+  register: ipa_installed
+
+- name: Install FreeIPA server
+  command: >
+    ipa-server-install
+    --setup-dns
+    --hostname={{ ipa_server_fqdn }}
+    --domain={{ ipa_domain }}
+    --realm={{ ipa_realm }}
+    --ds-password='{{ ipa_ds_password }}'
+    --admin-password='{{ ipa_admin_password }}'
+    --ip-address={{ ipa_server_ip }}
+    --no-host-dns
+    --no-ntp
+    {% for fwd in dns_forwarders %}
+    --forwarder={{ fwd }}
+    {% endfor %}
+    --reverse-zone={{ ipa_reverse_zone }}
+    --allow-zone-overlap
+    --unattended
+  when: not ipa_installed.stat.exists
+  notify: restart ipa
+
+- name: Verify FreeIPA status
+  command: ipactl status
+  changed_when: false
+  register: ipa_status
+
+- name: Show FreeIPA status
+  debug:
+    var: ipa_status.stdout_lines

@@ -1,0 +1,6 @@
+---
+- name: Deploy FreeIPA Server
+  hosts: server
+  become: true
+  roles:
+    - freeipa-server

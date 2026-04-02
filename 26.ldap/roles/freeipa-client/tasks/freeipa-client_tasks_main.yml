@@ -1,0 +1,203 @@
+---
+# ===== Базовая настройка =====
+
+- name: Set hostname
+  hostname:
+    name: "{{ inventory_hostname }}"
+
+- name: Set timezone
+  timezone:
+    name: "{{ timezone }}"
+
+# ===== Chrony =====
+
+- name: Install chrony (RedHat)
+  dnf:
+    name: chrony
+    state: present
+  when: ansible_os_family == "RedHat"
+
+- name: Install chrony (Debian/Ubuntu)
+  apt:
+    name: chrony
+    state: present
+    update_cache: true
+  when: ansible_os_family == "Debian"
+
+- name: Enable and start chronyd
+  service:
+    name: chronyd
+    state: started
+    enabled: true
+
+# ===== /etc/hosts =====
+
+- name: Deploy /etc/hosts
+  template:
+    src: hosts.j2
+    dest: /etc/hosts
+    owner: root
+    group: root
+    mode: "0644"
+
+# ===== SELinux (только RedHat) =====
+
+- name: Set SELinux to permissive (runtime)
+  command: setenforce 0
+  changed_when: false
+  failed_when: false
+  when: ansible_os_family == "RedHat"
+
+- name: Set SELinux to permissive (persistent)
+  selinux:
+    state: permissive
+    policy: targeted
+  when: ansible_os_family == "RedHat"
+
+# ===== Firewall: RedHat (firewalld) =====
+
+- name: Install firewalld (RedHat)
+  dnf:
+    name: firewalld
+    state: present
+  when: ansible_os_family == "RedHat"
+
+- name: Enable and start firewalld (RedHat)
+  service:
+    name: firewalld
+    state: started
+    enabled: true
+  when: ansible_os_family == "RedHat"
+
+- name: Open client firewall services (RedHat)
+  firewalld:
+    service: "{{ item }}"
+    permanent: true
+    immediate: true
+    state: enabled
+  loop:
+    - freeipa-ldap
+    - freeipa-ldaps
+    - dns
+    - kerberos
+    - kpasswd
+  when: ansible_os_family == "RedHat"
+
+# ===== Firewall: Debian/Ubuntu (ufw) =====
+
+- name: Install ufw (Debian/Ubuntu)
+  apt:
+    name: ufw
+    state: present
+  when: ansible_os_family == "Debian"
+
+- name: Allow SSH through ufw
+  ufw:
+    rule: allow
+    name: OpenSSH
+  when: ansible_os_family == "Debian"
+
+- name: Allow FreeIPA client ports (Debian/Ubuntu)
+  ufw:
+    rule: allow
+    port: "{{ item.port }}"
+    proto: "{{ item.proto }}"
+  loop:
+    - { port: "88",  proto: "tcp" }
+    - { port: "88",  proto: "udp" }
+    - { port: "464", proto: "tcp" }
+    - { port: "464", proto: "udp" }
+    - { port: "389", proto: "tcp" }
+    - { port: "636", proto: "tcp" }
+    - { port: "53",  proto: "tcp" }
+    - { port: "53",  proto: "udp" }
+  when: ansible_os_family == "Debian"
+
+- name: Enable ufw
+  ufw:
+    state: enabled
+    policy: deny
+  when: ansible_os_family == "Debian"
+
+# ===== DNS: направить на FreeIPA =====
+
+- name: Get active connection name (RedHat)
+  shell: nmcli -t -f NAME con show --active | head -1
+  register: nmcli_con_name
+  changed_when: false
+  when: ansible_os_family == "RedHat"
+
+- name: Set DNS to FreeIPA server (RedHat)
+  command: "nmcli con mod '{{ nmcli_con_name.stdout }}' {{ item }}"
+  loop:
+    - "ipv4.dns '{{ ipa_server_ip }}'"
+    - "ipv4.dns-search '{{ ipa_domain }}'"
+    - "ipv4.ignore-auto-dns yes"
+  when: ansible_os_family == "RedHat"
+
+- name: Restart network connection (RedHat)
+  command: "nmcli con up '{{ nmcli_con_name.stdout }}'"
+  when: ansible_os_family == "RedHat"
+
+- name: Configure DNS (Debian/Ubuntu)
+  copy:
+    content: |
+      search {{ ipa_domain }}
+      nameserver {{ ipa_server_ip }}
+    dest: /etc/resolv.conf
+    owner: root
+    group: root
+    mode: "0644"
+  when: ansible_os_family == "Debian"
+
+# ===== Установка FreeIPA-клиента =====
+
+- name: Install FreeIPA client (RedHat)
+  dnf:
+    name: freeipa-client
+    state: present
+  when: ansible_os_family == "RedHat"
+
+- name: Install FreeIPA client packages (Debian/Ubuntu)
+  apt:
+    name:
+      - freeipa-client
+      - sssd
+      - sssd-tools
+      - libnss-sss
+      - libpam-sss
+      - krb5-user
+    state: present
+    update_cache: true
+  when: ansible_os_family == "Debian"
+
+# ===== Подключение к FreeIPA =====
+
+- name: Check if already enrolled
+  stat:
+    path: /etc/ipa/default.conf
+  register: ipa_client_installed
+
+- name: Enroll client to FreeIPA
+  command: >
+    ipa-client-install
+    --mkhomedir
+    --domain={{ ipa_domain }}
+    --realm={{ ipa_realm }}
+    --server={{ ipa_server_fqdn }}
+    --no-ntp
+    --principal=admin
+    --password='{{ ipa_admin_password }}'
+    --unattended
+  when: not ipa_client_installed.stat.exists
+
+# ===== Проверка =====
+
+- name: Verify DNS resolution
+  command: "dig +short {{ ipa_server_fqdn }}"
+  changed_when: false
+  register: dns_check
+
+- name: Show DNS result
+  debug:
+    msg: "{{ ipa_server_fqdn }} -> {{ dns_check.stdout }}"

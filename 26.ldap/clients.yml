@@ -1,0 +1,6 @@
+---
+- name: Deploy FreeIPA Clients
+  hosts: clients
+  become: true
+  roles:
+    - freeipa-client

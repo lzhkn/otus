@@ -1,0 +1,4 @@
+127.0.0.1   localhost localhost.localdomain
+{% for entry in etc_hosts_entries %}
+{{ entry.ip }} {{ entry.fqdn }} {{ entry.short }}
+{% endfor %}

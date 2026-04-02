@@ -1,0 +1,18 @@
+---
+ipa_domain: qooqes.online
+ipa_realm: QOOQES.ONLINE
+ipa_server_fqdn: ipa.qooqes.online
+ipa_server_ip: 192.168.0.160
+ipa_admin_password: "AdminPass123"
+timezone: Europe/Moscow
+
+etc_hosts_entries:
+  - ip: 192.168.0.160
+    fqdn: ipa.qooqes.online
+    short: ipa
+  - ip: 192.168.0.161
+    fqdn: client1.qooqes.online
+    short: client1
+  - ip: 192.168.0.162
+    fqdn: client2.qooqes.online
+    short: client2
