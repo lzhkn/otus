@@ -291,7 +291,7 @@ CREATE DATABASE test_write;
 
 ---
 
-## Настраеваем Barman — резервное копирование 
+## Настраиваем Barman — резервное копирование 
 
 ### Установка пакетов
 
@@ -307,7 +307,7 @@ apt install -y barman-cli
 apt install -y barman barman-cli postgresql-client
 ```
 
-### Генерируем SSH-ключи и настраеваем обмен
+### Генерируем SSH-ключи и Настраиваем обмен
 
 **На pgsql-01** (от пользователя postgres):
 
